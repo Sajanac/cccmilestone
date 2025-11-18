@@ -502,20 +502,6 @@
             isValid = false;
         }
 
-        const totalSlots = Object.keys(selections).length;
-        if (totalSlots === 0) {
-            selectionError.style.display = 'block';
-            isValid = false;
-        }
-
-        if (!isValid) return;
-
-        // 2. Prepare Payload
-        submitBtn.disabled = true;
-        submitBtn.innerText = "Submitting...";
-
-        // Flatten selections into a readable array for Google Sheets
-        // Format: ["2025-12-01 3:00 PM - 4:00 PM", ...]
         let submissionArr = [];
         Object.keys(selections).sort().forEach(date => {
             selections[date].forEach(time => {
@@ -523,36 +509,56 @@
             });
         });
 
-        const payload = {
-            name: nameInput.value.trim(),
-            submissions: submissionArr
+        if (submissionArr.length === 0) {
+            selectionError.style.display = 'block';
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        // 2. Prepare Payload (using a temporary hidden form)
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Submitting...";
+
+        // Create a temporary form to send data via traditional POST
+        const tempForm = document.createElement('form');
+        tempForm.action = API_URL;
+        tempForm.method = 'POST';
+        tempForm.target = 'hidden-iframe'; // Targets the iframe added above
+
+        // Add Name field
+        const nameField = document.createElement('input');
+        nameField.type = 'hidden';
+        nameField.name = 'name'; // This name must match the parameter the GAS script expects
+        nameField.value = nameInput.value.trim();
+        tempForm.appendChild(nameField);
+
+        // Add Submissions field (joining array into a single string for transport)
+        const submissionsField = document.createElement('input');
+        submissionsField.type = 'hidden';
+        submissionsField.name = 'submissions'; // This name must match the parameter the GAS script expects
+        submissionsField.value = submissionArr.join(" | "); // Use a clear delimiter
+        tempForm.appendChild(submissionsField);
+        
+        // 3. Submit the Form
+        document.body.appendChild(tempForm);
+        console.log("Submitting form via hidden iframe...");
+        
+        // Store the final summary data for the success message
+        const finalData = { name: nameInput.value.trim(), submissions: submissionArr };
+
+        // We listen for the iframe loading the response to know it succeeded
+        document.getElementById('hidden-iframe').onload = function() {
+            // This runs after the GAS script has processed the submission
+            console.log("Iframe loaded response from server. Assuming success.");
+            showSuccess(finalData);
+            tempForm.remove();
         };
 
-        console.log("Sending Payload:", payload);
-
-        // 3. Fetch Request
-        // Note: Google Apps Script often requires Content-Type text/plain to avoid CORS preflight issues with simple scripts
-        fetch(API_URL, {
-            method: 'POST',
-            mode: 'no-cors', // 'no-cors' is standard for posting to GAS exec URLs from browsers without preflight setup
-            headers: {
-                'Content-Type': 'text/plain' 
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => {
-            // With no-cors, response is opaque. We assume success if no network error.
-            console.log("Request sent successfully");
-            showSuccess(payload);
-        })
-        .catch(error => {
-            console.error("Error:", error);
-            alert("There was a network error submitting the form. Please try again.");
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Submit Poll";
-        });
+        tempForm.submit();
     }
-
+    
+    // showSuccess function remains the same.
     function showSuccess(data) {
         const formContainer = document.querySelector('.container');
         
@@ -574,6 +580,8 @@
     }
 
 </script>
-
+<iframe id="hidden-iframe" name="hidden-iframe" style="display:none;"></iframe>
+</div>
+    
 </body>
 </html>
