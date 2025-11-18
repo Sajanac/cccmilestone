@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Poll Calendar</title>
+    <style>
+        :root {
+            --primary: #2eaadc;
+            --primary-hover: #208bb7;
+            --bg-color: #ffffff;
+            --text-color: #37352f;
+            --border-color: #e0e0e0;
+            --disabled-bg: #f7f7f5;
+            --disabled-text: #acaba9;
+            --danger: #eb5757;
+            --success: #27ae60;
+            --success-bg: #edfbf3;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
+            color: var(--text-color);
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        /* Calendar Grid */
+        .calendar-section {
+            margin-bottom: 30px;
+        }
+
+        .month-header {
+            font-weight: 700;
+            text-align: center;
+            margin: 20px 0 10px;
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 1px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 20px;
+        }
+
+        .day-name {
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            padding: 5px 0;
+        }
+
+        .day-cell {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .day-cell:hover:not(.disabled) {
+            background-color: #f0f8ff;
+            border-color: var(--primary);
+        }
+
+        .day-cell.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            font-weight: bold;
+        }
+
+        .day-cell.has-selection {
+            background-color: #e3f2fd;
+            border-color: var(--primary);
+            color: var(--primary);
+            font-weight: bold;
+        }
+        
+        /* Combine active and has-selection visual priority */
+        .day-cell.active.has-selection {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .day-cell.disabled {
+            background-color: var(--disabled-bg);
+            color: var(--disabled-text);
+            cursor: not-allowed;
+            border-color: transparent;
+        }
+
+        .empty-cell {
+            background: transparent;
+            border: none;
+        }
+
+        /* Time Selection Area */
+        .time-selector {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            display: none; /* Hidden until date selected */
+        }
+
+        .time-selector.visible {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .time-header {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .time-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .time-btn {
+            padding: 10px 15px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .time-btn.selected {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Summary Section */
+        .summary-box {
+            margin-top: 20px;
+            border-top: 2px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .delete-btn {
+            color: var(--danger);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0 5px;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--text-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            background-color: black;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        /* Success Message */
+        #success-message {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: var(--success-bg);
+            border: 1px solid var(--success);
+            border-radius: 6px;
+            color: #155724;
+        }
+        
+        .error-text {
+            color: var(--danger);
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Meeting Poll: Dec '25 - Jan '26</h2>
+    
+    <div class="form-group">
+        <label for="userName">Your Name (Required)</label>
+        <input type="text" id="userName" placeholder="e.g. John Doe">
+        <div id="nameError" class="error-text">Please enter your name.</div>
+    </div>
+
+    <div class="calendar-section">
+        <div class="month-header">December 2025</div>
+        <div class="calendar-grid" id="cal-dec"></div>
+
+        <div class="month-header">January 2026</div>
+        <div class="calendar-grid" id="cal-jan"></div>
+    </div>
+
+    <div id="timeSelector" class="time-selector">
+        <div class="time-header">Available times for <span id="activeDateDisplay"></span>:</div>
+        <div class="time-buttons">
+            <button class="time-btn" onclick="toggleTime('3:00 PM - 4:00 PM')">3:00 PM - 4:00 PM</button>
+            <button class="time-btn" onclick="toggleTime('4:00 PM - 5:00 PM')">4:00 PM - 5:00 PM</button>
+        </div>
+    </div>
+
+    <div class="summary-box">
+        <label>Your Selection:</label>
+        <div id="summaryList">
+            <div style="color: #888; font-size: 13px; font-style: italic;">No dates selected yet.</div>
+        </div>
+        <div id="selectionError" class="error-text">Please select at least one date and time.</div>
+    </div>
+
+    <button id="submitBtn" class="submit-btn" onclick="submitForm()">Submit Poll</button>
+
+    <div id="success-message">
+        <h3>Submission Successful!</h3>
+        <p>Thank you, <span id="successName"></span>. Your availability has been recorded.</p>
+        <h4>Summary:</h4>
+        <div id="finalSummary" style="font-size: 13px; line-height: 1.6;"></div>
+    </div>
+</div>
+
+<script>
+    // --- CONFIGURATION ---
+    const API_URL = "https://script.google.com/macros/s/AKfycbxySqLfi8KbtZ8YPWzdovlCrNIXnALXn9mlx9aRbYGxiM9H-UQAbrXRS-Y6ePyzvmAT/exec";
+    
+    // Format: YYYY-MM-DD
+    const BLACKOUT_DATES = [
+        "2025-12-08", "2025-12-09", "2025-12-11", 
+        "2025-12-24", "2025-12-25", "2025-12-31",
+        "2026-01-01", "2026-01-12", "2026-01-13", "2026-01-15"
+    ];
+
+    // State Management
+    // structure: { "2025-12-05": ["3:00 PM - 4:00 PM", ...] }
+    let selections = {}; 
+    let activeDate = null;
+
+    // --- CALENDAR GENERATION ---
+    
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function createCalendar(containerId, year, month, maxDay = 31) {
+        const container = document.getElementById(containerId);
+        
+        // Add Day Headers
+        daysOfWeek.forEach(d => {
+            const el = document.createElement('div');
+            el.className = 'day-name';
+            el.innerText = d;
+            container.appendChild(el);
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0 = Sun
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        // Padding for empty slots before the 1st
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            const el = document.createElement('div');
+            el.className = 'empty-cell';
+            container.appendChild(el);
+        }
+
+        // Actual Days
+        for (let d = 1; d <= daysInMonth; d++) {
+            // Enforce cutoff for Jan (Only allow up to Jan 15)
+            if (maxDay && d > maxDay) {
+                const el = document.createElement('div');
+                el.className = 'day-cell disabled';
+                el.innerText = d;
+                container.appendChild(el);
+                continue;
+            }
+
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const isBlackout = BLACKOUT_DATES.includes(dateStr);
+
+            const el = document.createElement('div');
+            el.className = `day-cell ${isBlackout ? 'disabled' : ''}`;
+            el.id = `date-${dateStr}`;
+            el.innerText = d;
+
+            if (!isBlackout) {
+                el.onclick = () => setActiveDate(dateStr);
+            }
+
+            container.appendChild(el);
+        }
+    }
+
+    // Initialize Calendars
+    // Dec 2025 (Month 11 in JS)
+    createCalendar('cal-dec', 2025, 11, 31);
+    // Jan 2026 (Month 0 in JS), cutoff at 15th
+    createCalendar('cal-jan', 2026, 0, 15);
+
+
+    // --- LOGIC ---
+
+    function setActiveDate(dateStr) {
+        activeDate = dateStr;
+        
+        // Update UI Highlight
+        document.querySelectorAll('.day-cell').forEach(el => el.classList.remove('active'));
+        document.getElementById(`date-${dateStr}`).classList.add('active');
+
+        // Show Time Selector
+        const displayDate = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        document.getElementById('activeDateDisplay').innerText = displayDate;
+        document.getElementById('timeSelector').classList.add('visible');
+
+        updateTimeButtons();
+    }
+
+    function updateTimeButtons() {
+        if (!activeDate) return;
+        const currentSlots = selections[activeDate] || [];
+        const buttons = document.querySelectorAll('.time-btn');
+        
+        buttons.forEach(btn => {
+            const time = btn.innerText;
+            if (currentSlots.includes(time)) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+    }
+
+    function toggleTime(timeStr) {
+        if (!activeDate) return;
+
+        if (!selections[activeDate]) {
+            selections[activeDate] = [];
+        }
+
+        const index = selections[activeDate].indexOf(timeStr);
+        if (index > -1) {
+            selections[activeDate].splice(index, 1); // Remove
+            // Clean up key if empty
+            if (selections[activeDate].length === 0) delete selections[activeDate];
+        } else {
+            selections[activeDate].push(timeStr); // Add
+            // Sort times logically (3pm before 4pm)
+            selections[activeDate].sort();
+        }
+
+        // Visual Updates
+        updateTimeButtons();
+        updateCalendarIndicators();
+        renderSummary();
+    }
+
+    function updateCalendarIndicators() {
+        // Reset all 'has-selection'
+        document.querySelectorAll('.day-cell').forEach(el => el.classList.remove('has-selection'));
+
+        // Add class to dates with data
+        Object.keys(selections).forEach(dateStr => {
+            const el = document.getElementById(`date-${dateStr}`);
+            if (el) el.classList.add('has-selection');
+        });
+    }
+
+    function renderSummary() {
+        const listEl = document.getElementById('summaryList');
+        listEl.innerHTML = '';
+
+        const sortedDates = Object.keys(selections).sort();
+
+        if (sortedDates.length === 0) {
+            listEl.innerHTML = '<div style="color: #888; font-size: 13px; font-style: italic;">No dates selected yet.</div>';
+            return;
+        }
+
+        sortedDates.forEach(date => {
+            const times = selections[date];
+            times.forEach(time => {
+                const displayDate = new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                
+                const item = document.createElement('div');
+                item.className = 'summary-item';
+                item.innerHTML = `
+                    <span><strong>${displayDate}</strong>: ${time}</span>
+                    <button class="delete-btn" onclick="removeEntry('${date}', '${time}')">&times;</button>
+                `;
+                listEl.appendChild(item);
+            });
+        });
+    }
+
+    function removeEntry(date, time) {
+        if (selections[date]) {
+            const index = selections[date].indexOf(time);
+            if (index > -1) {
+                selections[date].splice(index, 1);
+                if (selections[date].length === 0) delete selections[date];
+            }
+        }
+        // Refresh visuals
+        updateCalendarIndicators();
+        renderSummary();
+        if(activeDate === date) updateTimeButtons();
+    }
+
+
+    // --- SUBMISSION ---
+
+    function submitForm() {
+        const nameInput = document.getElementById('userName');
+        const nameError = document.getElementById('nameError');
+        const selectionError = document.getElementById('selectionError');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // 1. Validation
+        let isValid = true;
+        nameError.style.display = 'none';
+        selectionError.style.display = 'none';
+
+        if (!nameInput.value.trim()) {
+            nameError.style.display = 'block';
+            isValid = false;
+        }
+
+        const totalSlots = Object.keys(selections).length;
+        if (totalSlots === 0) {
+            selectionError.style.display = 'block';
+            isValid = false;
+        }
+
+        if (!isValid) return;
+
+        // 2. Prepare Payload
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Submitting...";
+
+        // Flatten selections into a readable array for Google Sheets
+        // Format: ["2025-12-01 3:00 PM - 4:00 PM", ...]
+        let submissionArr = [];
+        Object.keys(selections).sort().forEach(date => {
+            selections[date].forEach(time => {
+                submissionArr.push(`${date} (${time})`);
+            });
+        });
+
+        const payload = {
+            name: nameInput.value.trim(),
+            submissions: submissionArr
+        };
+
+        console.log("Sending Payload:", payload);
+
+        // 3. Fetch Request
+        // Note: Google Apps Script often requires Content-Type text/plain to avoid CORS preflight issues with simple scripts
+        fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors', // 'no-cors' is standard for posting to GAS exec URLs from browsers without preflight setup
+            headers: {
+                'Content-Type': 'text/plain' 
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => {
+            // With no-cors, response is opaque. We assume success if no network error.
+            console.log("Request sent successfully");
+            showSuccess(payload);
+        })
+        .catch(error => {
+            console.error("Error:", error);
+            alert("There was a network error submitting the form. Please try again.");
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Submit Poll";
+        });
+    }
+
+    function showSuccess(data) {
+        const formContainer = document.querySelector('.container');
+        
+        // Hide form elements (optional, or just scroll to bottom)
+        document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('timeSelector').style.display = 'none';
+        
+        const successBox = document.getElementById('success-message');
+        const finalSummary = document.getElementById('finalSummary');
+        
+        document.getElementById('successName').innerText = data.name;
+        
+        finalSummary.innerHTML = data.submissions.map(s => `<div>• ${s}</div>`).join('');
+        
+        successBox.style.display = 'block';
+        
+        // Scroll to success message
+        successBox.scrollIntoView({ behavior: 'smooth' });
+    }
+
+</script>
+
+</body>
+</html>
